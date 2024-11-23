@@ -1,7 +1,7 @@
 from cube_matrix import CubeMatrix
 
 class Module:
-    def __init__(self, type="5x5_clear", data=None):
+    def __init__(self, type, data=None):
         self.type = type
         self.data = data
         if self.data is None:
@@ -14,11 +14,11 @@ class Module:
 
 
     def set_data(self, data):
-        if self.type == "5x5_clear" and not (isinstance(data, list) and len(data) == 25): # Fixed some typos and validations
+        if self.type == "5x5_clear" and not (isinstance(data, list) and len(data) == 25):
             raise ValueError("Invalid data for 5x5_clear module")
         elif self.type == "5x5_blur" and not (isinstance(data, list) and len(data) == 25):
             raise ValueError("Invalid data for 5x5_blur module")
-        elif self.type == "1x1" and not isinstance(data, str): # 1x1 is a string hex code.
+        elif self.type == "1x1" and not isinstance(data, str):
           raise ValueError("Invalid data for 1x1 module")
         self.data = data
         self.used_img = True

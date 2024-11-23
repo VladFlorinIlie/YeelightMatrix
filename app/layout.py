@@ -1,11 +1,11 @@
 from module import Module
-from image_utils import image_to_matrices, get_image_from_file, get_image_from_colors, rotate_image
+from image_utils import image_to_matrix, get_image_from_file, get_image_from_colors, rotate_image
 
 class Layout:
     def __init__(self, layout_orientation, base, device_layout=[]):
         self.layout_orientation = layout_orientation
         self.base = base
-        self.device_layout = device_layout
+        self.number_modules = len(device_layout)
 
         if self.layout_orientation == "vertical":
             if self.base == "bottom":
@@ -22,6 +22,14 @@ class Layout:
                 self.rotation_degrees = 270
                 self.image_draw_flipped = True
 
+        self.device_layout = list(reversed(device_layout)) if self.image_draw_flipped else device_layout
+
+
+    def _get_index(self, index):
+        if self.image_draw_flipped:
+            return self.number_modules - index - 1
+        return index
+
 
     def get_modules(self):
         return self.device_layout
@@ -31,38 +39,34 @@ class Layout:
         if clear:
             self.device_layout = []
 
+        modules = list(reversed(modules)) if self.image_draw_flipped else modules
         for module in modules:
             self.device_layout.append(Module(module))
 
 
-    def add_module(self, module, index=-1):
-        self.device_layout.insert(index, Module(module))
+    def add_module(self, module, index=None):
+        index = self.number_modules if index is None else index
+        self.device_layout.insert(max(0, self._get_index(index)), Module(module))
 
 
     def set_module_colors(self, index, colors):
-        module = self.device_layout[index]
+        module = self.device_layout[self._get_index(index)]
         size = 1 if module.type == "1x1" else 5
         img = get_image_from_colors(colors, size, size)
         img = rotate_image(img, self.rotation_degrees)
-        processed_colors = image_to_matrices(img, size, size)[0]
+        processed_colors = image_to_matrix(img)
         module.set_colors(processed_colors)
 
 
     def set_image(self, path, start, max=None):
-        start_module = 0
         found_target = False
 
-        if (self.image_draw_flipped):
-            enum = reversed(list(enumerate(self.device_layout)))
-        else:
-            enum = enumerate(self.device_layout)
-
-        for i, module in enum:
-            if module.type == "5x5_clear" and not module.is_used():
-                if i >= start and self.image_draw_flipped or i <= start and not self.image_draw_flipped:
-                    found_target = True
-                    start_module = i
-                    break
+        start = self._get_index(start)
+        for i, module in enumerate(self.device_layout):
+            if module.type == "5x5_clear" and not module.is_used() and i >= start:
+                found_target = True
+                start_module = i
+                break
 
         if not found_target:
             raise IndexError("Requested start module could not be found or used!")
@@ -75,13 +79,8 @@ class Layout:
             img_width = 0
 
         cnt = 0
-        if (self.image_draw_flipped):
-            layout = list(reversed(self.device_layout))
-        else:
-            layout = self.device_layout
-
-        for module in layout[start_module:]:
-            if module.type == "5x5_clear" and not module.is_used() and cnt < max:
+        for module in self.device_layout[start_module:]:
+            if module.type == "5x5_clear" and not module.is_used() and cnt is not None and cnt < max:
                 if self.layout_orientation == "vertical":
                     img_height += 5
                 else:
@@ -90,15 +89,12 @@ class Layout:
             else:
                 break
 
-        print(start_module)
-        print(img_height)
-
         try:
-            img = get_image_from_file(path, img_width, img_height)
-            img = rotate_image(img, self.rotation_degrees)
-            matrices = image_to_matrices(img, img_width, img_height)
+            imgs = get_image_from_file(path, img_width, img_height, 5, 5)
+            imgs = [rotate_image(img, self.rotation_degrees) for img in imgs]
+            matrices = [image_to_matrix(img) for img in imgs]
 
-            for i, module in enumerate(layout[start_module:]):
+            for i, module in enumerate(self.device_layout[start_module:]):
                 if i >= cnt:
                     break
                 module.set_data(matrices[i])
@@ -114,7 +110,12 @@ class Layout:
     def get_raw_rgb_data(self):
         combined_rgb_data = ""
 
-        for module in self.device_layout:
+        if self.image_draw_flipped:
+            layout = reversed(list(self.device_layout))
+        else:
+            layout = self.device_layout
+
+        for module in layout:
             combined_rgb_data += module.get_rgb_data()
 
         return combined_rgb_data

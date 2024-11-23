@@ -45,7 +45,7 @@ class CubeMatrix:
 
                 if line.get("method") != "props":
                     response = line
-                elif "params" in line:  # Only update if "params" exists.
+                elif "params" in line:
                     self._last_properties.update(line["params"])
         return response
 

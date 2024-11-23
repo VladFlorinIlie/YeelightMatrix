@@ -1,9 +1,36 @@
 from PIL import Image
 
-def get_image_from_file(image_path, width, height):
+def get_image_from_file(image_path, width, height, sub_width, sub_height):
     img = Image.open(image_path)
     img = img.resize((width, height), Image.Resampling.LANCZOS)
-    return img
+
+    if width > height:
+        parts = width // sub_width
+        dir = True
+    elif width < height:
+        parts = height // sub_height
+        dir = False
+    else:
+        return [img]
+
+    sub_images = []
+    for i in range(parts):
+        if dir:
+            left = i * sub_width
+            top = sub_height
+            right = (i + 1) * sub_width
+            bottom = 0
+        else:
+            left = 0
+            top = i * sub_height
+            right = sub_width
+            bottom = (i + 1) * sub_height
+        
+        bbox = (left, top, right, bottom)
+        sub_img = img.crop(bbox)
+        sub_images.append(sub_img)
+
+    return sub_images
 
 
 def get_image_from_colors(colors, width, height):
@@ -22,19 +49,11 @@ def rotate_image(img, degrees):
     return img.rotate(degrees)
 
 
-def image_to_matrices(img, sub_width, sub_height):
-    matrices = []
-    temp_matrix = []
-    values = 0
+def image_to_matrix(img):
+    matrix = []
 
     for pixel in img.getdata():
         color = "#{:02x}{:02x}{:02x}".format(*pixel[:3])
-        temp_matrix.append(color)
-        values += 1
+        matrix.append(color)
 
-        if values == sub_width * sub_height:
-            matrices.append(temp_matrix)
-            temp_matrix = []
-            values = 0
-
-    return matrices
+    return matrix
