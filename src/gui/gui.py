@@ -1,8 +1,8 @@
 import tkinter as tk
 from tkinter import filedialog, colorchooser, messagebox
 import logging
-from cubes.lib.cube_matrix import CubeMatrix, BulbException
-from cubes.lib.layout import Layout
+from yeelight_matrix.cube_matrix import CubeMatrix, BulbException
+from yeelight_matrix.layout import Layout
 from grid import ColorPickerGrid
 
 # Configure logging

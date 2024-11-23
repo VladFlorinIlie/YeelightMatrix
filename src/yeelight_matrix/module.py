@@ -1,4 +1,4 @@
-from cube_matrix import CubeMatrix
+from yeelight_matrix.cube_matrix import CubeMatrix
 
 class Module:
     def __init__(self, type, data=None):

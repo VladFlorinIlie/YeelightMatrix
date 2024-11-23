@@ -1,6 +1,6 @@
 import logging
-from lib.cube_matrix import CubeMatrix
-from lib.layout import Layout
+from yeelight_matrix.cube_matrix import CubeMatrix
+from yeelight_matrix.layout import Layout
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
@@ -36,6 +36,5 @@ if __name__ == "__main__":
         raw_rgb_data = layout.get_raw_rgb_data()
         cube.draw_matrices(raw_rgb_data)
         print("Layout set successfully!")
-
     except Exception as e:
         print(f"Error: {e}")

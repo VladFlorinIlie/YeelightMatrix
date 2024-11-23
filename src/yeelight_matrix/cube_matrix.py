@@ -70,11 +70,29 @@ class CubeMatrix:
         if isinstance(response, dict) and "error" in response:
             raise BulbException(response["error"])
         return response
+    
+
+    def set_power_state(self, state):
+        command = {
+            "id": next(self._cmd_id),
+            "method": "set_power",
+            "params": [state, "smooth", 500]
+        }
+        self.send_command(command)
+
+
+    def set_brightness(self, brightness):
+        command = {
+            "id": next(self._cmd_id),
+            "method": "set_bright",
+            "params": [brightness, "smooth", 500]
+        }
+        self.send_command(command)
 
 
     def set_fx_mode(self, mode):
         command = {
-            "id": 1,
+            "id": next(self._cmd_id),
             "method": "activate_fx_mode",
             "params": [{"mode": mode}]
         }

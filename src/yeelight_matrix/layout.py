@@ -1,6 +1,6 @@
 import logging
-from module import Module
-from image_utils import image_to_matrix, get_image_from_file, get_image_from_colors, rotate_image
+from yeelight_matrix.module import Module
+from yeelight_matrix.image_utils import image_to_matrix, get_image_from_file, get_image_from_colors, rotate_image
 
 _LOGGER = logging.getLogger(__name__)
 
