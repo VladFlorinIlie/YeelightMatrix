@@ -7,8 +7,8 @@ import base64
 _LOGGER = logging.getLogger(__name__)
 
 
-class BulbException(Exception):
-    """Custom exception for bulb-related errors."""
+class CubeMatrixException(Exception):
+    """Custom exception for cube matrix related errors."""
     pass
 
 
@@ -27,7 +27,7 @@ class CubeMatrix:
             try:
                 data = sock.recv(16 * 1024)
             except socket.error:
-                response = {"error": "Bulb closed the connection."}
+                response = {"error": "Cube matrix closed the connection."}
                 break
             if not data:
                 response = {"error": "No more data."}
@@ -58,17 +58,17 @@ class CubeMatrix:
                 try:
                     sock.sendall((json.dumps(command) + "\r\n").encode("utf8"))
                 except socket.error as ex:
-                    raise BulbException(f"Socket error sending command: {ex}")
+                    raise CubeMatrixException(f"Socket error sending command: {ex}")
 
                 if self._music_mode:
                     return {"result": ["ok"]}
 
                 response = self._receive_response(sock)
         except (socket.timeout, OSError) as err:
-            raise BulbException(f"Connection error to {self.ip}:{self.port}: {err}")
+            raise CubeMatrixException(f"Connection error to {self.ip}:{self.port}: {err}")
 
         if isinstance(response, dict) and "error" in response:
-            raise BulbException(response["error"])
+            raise CubeMatrixException(response["error"])
         return response
     
 

@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import filedialog, colorchooser, messagebox
 import logging
-from yeelight_matrix.cube_matrix import CubeMatrix, BulbException
+from yeelight_matrix.cube_matrix import CubeMatrix, CubeMatrixException
 from yeelight_matrix.layout import Layout
 from grid import ColorPickerGrid
 
@@ -89,7 +89,7 @@ class YeelightGUI:
             self.cube = CubeMatrix(self.ip.get(), self.port.get())
             self.cube.set_fx_mode("direct")
             messagebox.showinfo("Success", "Connected to cube!")
-        except BulbException as e:
+        except CubeMatrixException as e:
             messagebox.showerror("Error", f"Could not connect: {e}")
 
 
@@ -280,7 +280,7 @@ class YeelightGUI:
             raw_rgb_data = self.layout.get_raw_rgb_data()
             self.cube.draw_matrices(raw_rgb_data)
             messagebox.showinfo("Success", "Layout command sent!")
-        except BulbException as e:
+        except CubeMatrixException as e:
             messagebox.showerror("Error", f"Error sending command: {e}")
 
 
