@@ -9,6 +9,7 @@ if __name__ == "__main__":
     port = 55443
     cube = CubeMatrix(ip, port)
     cube.set_fx_mode("direct")
+    cube.get_bulb().set_brightness(100)
 
     device_layout = [
         "5x5_blur",

@@ -1,8 +1,6 @@
-import json
-import socket
 import logging
-from itertools import count
 import base64
+from yeelight import Bulb
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -13,99 +11,26 @@ class CubeMatrixException(Exception):
 
 
 class CubeMatrix:
-    def __init__(self, ip, port):
-        self.ip = ip
-        self.port = port
-        self._cmd_id = count(1)
-        self._music_mode = True
-        self._last_properties = {}
+    def __init__(self, ip, port, music_mode=True):
+        self.device = Bulb(ip, port)
+
+        # the cube matrix is seen as being in "music mode" in the app
+        # after the color matrices are applied
+        # so we might as well put it in music mode from the start
+        if music_mode:
+            self.device.start_music()
 
 
-    def _receive_response(self, sock):
-        response = None
-        while response is None:
-            try:
-                data = sock.recv(16 * 1024)
-            except socket.error:
-                response = {"error": "Cube matrix closed the connection."}
-                break
-            if not data:
-                response = {"error": "No more data."}
-                break
-
-            for line in data.split(b"\r\n"):
-                if not line:
-                    continue
-                try:
-                    line = json.loads(line.decode("utf8"))
-                    _LOGGER.debug(f"Received: {line}")
-                except (ValueError, UnicodeDecodeError):
-                    _LOGGER.warning("Invalid JSON or Unicode error received.")
-                    line = {"result": ["invalid command"]}
-
-                if line.get("method") != "props":
-                    response = line
-                elif "params" in line:
-                    self._last_properties.update(line["params"])
-        return response
-
-
-    def send_command(self, command):
-        """Sends a command to the bulb."""
-        try:
-            with socket.create_connection((self.ip, self.port), 5) as sock:
-                _LOGGER.debug(f"Sending to {self.ip}:{self.port}: {command}")
-                try:
-                    sock.sendall((json.dumps(command) + "\r\n").encode("utf8"))
-                except socket.error as ex:
-                    raise CubeMatrixException(f"Socket error sending command: {ex}")
-
-                if self._music_mode:
-                    return {"result": ["ok"]}
-
-                response = self._receive_response(sock)
-        except (socket.timeout, OSError) as err:
-            raise CubeMatrixException(f"Connection error to {self.ip}:{self.port}: {err}")
-
-        if isinstance(response, dict) and "error" in response:
-            raise CubeMatrixException(response["error"])
-        return response
-    
-
-    def set_power_state(self, state):
-        command = {
-            "id": next(self._cmd_id),
-            "method": "set_power",
-            "params": [state, "smooth", 500]
-        }
-        self.send_command(command)
-
-
-    def set_brightness(self, brightness):
-        command = {
-            "id": next(self._cmd_id),
-            "method": "set_bright",
-            "params": [brightness, "smooth", 500]
-        }
-        self.send_command(command)
+    def get_bulb(self):
+        return self.device
 
 
     def set_fx_mode(self, mode):
-        command = {
-            "id": next(self._cmd_id),
-            "method": "activate_fx_mode",
-            "params": [{"mode": mode}]
-        }
-        self.send_command(command)
+        self.device.send_command("activate_fx_mode", [{"mode": mode}])
 
 
     def draw_matrices(self, rgb_data):
-        command = {
-            "id": next(self._cmd_id),
-            "method": "update_leds",
-            "params": [rgb_data]
-        }
-        self.send_command(command)
+        self.device.send_command("update_leds", [rgb_data])
 
 
     @staticmethod

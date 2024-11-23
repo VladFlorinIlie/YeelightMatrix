@@ -17,11 +17,9 @@ pip install -e .
 
 *   **`draw_matrices(raw_rgb_data)`:** Sends raw RGB data to control the LEDs.
 
-*   **`set_power_state(state)`:** Turns the device on or off. `state` should be either `"on"` or `"off"`.
-
-*   **`set_brightness(brightness)`:** Sets the overall brightness of the device. `brightness` should be an integer between 0 and 100.
-
 *   **`set_fx_mode(mode)`:** Activates a specific effect mode. For direct control of LEDs using `draw_matrices()`, `mode` should be set to `"direct"`.  Other effect modes might be available depending on your device; consult the Yeelight API documentation for 
+
+*   **`get_bulb()`:** Return the attached Yeelight device. Check the Yeelight python library for more information.
 
 ### `Layout` Class
 
