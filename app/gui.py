@@ -87,7 +87,8 @@ class YeelightGUI:
     def connect_to_bulb(self):
         try:
             self.cube = CubeMatrix(self.ip.get(), self.port.get())
-            messagebox.showinfo("Success", "Connected to bulb!")
+            self.cube.set_fx_mode("direct")
+            messagebox.showinfo("Success", "Connected to cube!")
         except BulbException as e:
             messagebox.showerror("Error", f"Could not connect: {e}")
 

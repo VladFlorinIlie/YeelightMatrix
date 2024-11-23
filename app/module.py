@@ -9,7 +9,8 @@ class Module:
                 self.data = ["#000000"]
             else:
                 self.data = ["#000000"] * 25
-        self.used = False
+        self.used_img = False
+        self.used_color = False
 
 
     def set_data(self, data):
@@ -20,7 +21,7 @@ class Module:
         elif self.type == "1x1" and not isinstance(data, str): # 1x1 is a string hex code.
           raise ValueError("Invalid data for 1x1 module")
         self.data = data
-        self.used = True
+        self.used_img = True
 
 
     def set_colors(self, colors):
@@ -31,7 +32,7 @@ class Module:
             if len(colors) != 25:
                 raise ValueError(f"5x5 module requires 25 colors, but received {len(colors)}")
         self.data = colors
-        self.used = True
+        self.used_color = True
 
 
     def get_colors(self):
@@ -50,4 +51,4 @@ class Module:
 
 
     def is_used(self):
-        return self.used    
+        return self.used_img or self.used_color    

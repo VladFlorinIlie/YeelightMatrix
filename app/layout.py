@@ -1,26 +1,26 @@
 from module import Module
-from image_utils import process_image, image_to_matrix
+from image_utils import image_to_matrices, get_image_from_file, get_image_from_colors, rotate_image
 
 class Layout:
     def __init__(self, layout_orientation, base, device_layout=[]):
         self.layout_orientation = layout_orientation
-        if base == "bottom" or base == "right":
-            self.flip = True
-        else:
-            self.flip = False
+        self.base = base
         self.device_layout = device_layout
 
-
-    def _rotate_data(self, data):
-        if self.flip and len(data) > 1:
-            rotated_matrix = []
-            for i in range(4, -1, -1):
-                for j in range(4, -1, -1):
-                    index = i * 5 + j
-                    rotated_matrix.append(data[index])
-            return rotated_matrix
-
-        return data
+        if self.layout_orientation == "vertical":
+            if self.base == "bottom":
+                self.rotation_degrees = 180
+                self.image_draw_flipped = True
+            else:
+                self.rotation_degrees = 0
+                self.image_draw_flipped = False
+        else:
+            if self.base == "left":
+                self.rotation_degrees = 90
+                self.image_draw_flipped = False
+            else:
+                self.rotation_degrees = 270
+                self.image_draw_flipped = True
 
 
     def get_modules(self):
@@ -41,19 +41,28 @@ class Layout:
 
     def set_module_colors(self, index, colors):
         module = self.device_layout[index]
-        if module.is_used():
-            raise ValueError("Module already set!")
-        module.set_colors(self._rotate_data(colors))
+        size = 1 if module.type == "1x1" else 5
+        img = get_image_from_colors(colors, size, size)
+        img = rotate_image(img, self.rotation_degrees)
+        processed_colors = image_to_matrices(img, size, size)[0]
+        module.set_colors(processed_colors)
 
 
-    def set_image(self, path, start=0, max=None):
+    def set_image(self, path, start, max=None):
         start_module = 0
         found_target = False
-        for i, module in enumerate(self.device_layout):
-            if module.type == "5x5_clear" and not module.is_used() and i >= start:
-                found_target = True
-                start_module = i
-                break
+
+        if (self.image_draw_flipped):
+            enum = reversed(list(enumerate(self.device_layout)))
+        else:
+            enum = enumerate(self.device_layout)
+
+        for i, module in enum:
+            if module.type == "5x5_clear" and not module.is_used():
+                if i >= start and self.image_draw_flipped or i <= start and not self.image_draw_flipped:
+                    found_target = True
+                    start_module = i
+                    break
 
         if not found_target:
             raise IndexError("Requested start module could not be found or used!")
@@ -66,7 +75,12 @@ class Layout:
             img_width = 0
 
         cnt = 0
-        for module in self.device_layout[start_module:]:
+        if (self.image_draw_flipped):
+            layout = list(reversed(self.device_layout))
+        else:
+            layout = self.device_layout
+
+        for module in layout[start_module:]:
             if module.type == "5x5_clear" and not module.is_used() and cnt < max:
                 if self.layout_orientation == "vertical":
                     img_height += 5
@@ -76,21 +90,18 @@ class Layout:
             else:
                 break
 
-        try:
-            resized_img = process_image(path, img_width, img_height, self.flip)
-            matrix = image_to_matrix(resized_img)
+        print(start_module)
+        print(img_height)
 
-            if self.layout_orientation == "vertical":
-                split_matrices = [matrix[i : i + 25] for i in range(0, len(matrix), 25)]
-                for i, split_matrix in enumerate(split_matrices):
-                    self.device_layout[start_module + i].set_data(split_matrix)
-            else: 
-                temp_matrices = [[] for _ in range(img_width // 5)]
-                for j in range(25):
-                    for i in range(img_width // 5):
-                        temp_matrices[i].append(matrix[j * (img_width // 5) + i])
-                for i, split_matrix in enumerate(temp_matrices):
-                    self.device_layout[start_module + i].set_data(split_matrix)
+        try:
+            img = get_image_from_file(path, img_width, img_height)
+            img = rotate_image(img, self.rotation_degrees)
+            matrices = image_to_matrices(img, img_width, img_height)
+
+            for i, module in enumerate(layout[start_module:]):
+                if i >= cnt:
+                    break
+                module.set_data(matrices[i])
 
         except IndexError:
             print("Image could not be drawn (likely not enough space)")

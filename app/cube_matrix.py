@@ -72,6 +72,15 @@ class CubeMatrix:
         return response
 
 
+    def set_fx_mode(self, mode):
+        command = {
+            "id": 1,
+            "method": "activate_fx_mode",
+            "params": [{"mode": mode}]
+        }
+        self.send_command(command)
+
+
     def draw_matrices(self, rgb_data):
         command = {
             "id": next(self._cmd_id),

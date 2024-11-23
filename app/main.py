@@ -8,6 +8,7 @@ if __name__ == "__main__":
     ip = "192.168.0.34"
     port = 55443
     cube = CubeMatrix(ip, port)
+    cube.set_fx_mode("direct")
 
     device_layout = [
         "5x5_blur",
@@ -19,7 +20,7 @@ if __name__ == "__main__":
     ]
 
     images_data = [
-        ("assets/art.png", 1, 4)
+        ("assets/art.png", 4, 4)
     ]
 
     layout = Layout("vertical", "bottom")
