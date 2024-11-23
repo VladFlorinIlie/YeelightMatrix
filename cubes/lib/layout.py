@@ -1,5 +1,8 @@
+import logging
 from module import Module
 from image_utils import image_to_matrix, get_image_from_file, get_image_from_colors, rotate_image
+
+_LOGGER = logging.getLogger(__name__)
 
 class Layout:
     def __init__(self, layout_orientation, base, device_layout=[]):
@@ -16,10 +19,10 @@ class Layout:
                 self.image_draw_flipped = False
         else:
             if self.base == "left":
-                self.rotation_degrees = 90
+                self.rotation_degrees = 270
                 self.image_draw_flipped = False
             else:
-                self.rotation_degrees = 270
+                self.rotation_degrees = 90
                 self.image_draw_flipped = True
 
         self.device_layout = list(reversed(device_layout)) if self.image_draw_flipped else device_layout
@@ -32,7 +35,7 @@ class Layout:
 
 
     def get_modules(self):
-        return self.device_layout
+        return list(reversed(self.device_layout)) if self.image_draw_flipped else self.device_layout
 
 
     def add_modules_list(self, modules, clear=True):
@@ -50,6 +53,7 @@ class Layout:
 
 
     def set_module_colors(self, index, colors):
+        _LOGGER.debug(f"Setting colors {colors} on module at index {index}")
         module = self.device_layout[self._get_index(index)]
         size = 1 if module.type == "1x1" else 5
         img = get_image_from_colors(colors, size, size)
@@ -59,6 +63,7 @@ class Layout:
 
 
     def set_image(self, path, start, max=None):
+        _LOGGER.debug(f"Setting image from path {path} starting with module at index {start} and using a maximum on {max}")
         found_target = False
 
         start = self._get_index(start)
@@ -100,11 +105,9 @@ class Layout:
                 module.set_data(matrices[i])
 
         except IndexError:
-            print("Image could not be drawn (likely not enough space)")
-            return None
+            raise(RuntimeError("Image could not be drawn"))
         except FileNotFoundError:
-            print(f"Error: Image file not found: {path}")
-            return None
+            raise(FileNotFoundError(f"Error: Image file not found: {path}"))
 
 
     def get_raw_rgb_data(self):

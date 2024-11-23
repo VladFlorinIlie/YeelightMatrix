@@ -1,6 +1,6 @@
 import logging
-from cube_matrix import CubeMatrix
-from layout import Layout
+from lib.cube_matrix import CubeMatrix
+from lib.layout import Layout
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)

@@ -17,9 +17,9 @@ def get_image_from_file(image_path, width, height, sub_width, sub_height):
     for i in range(parts):
         if dir:
             left = i * sub_width
-            top = sub_height
+            top = 0
             right = (i + 1) * sub_width
-            bottom = 0
+            bottom = sub_height
         else:
             left = 0
             top = i * sub_height
