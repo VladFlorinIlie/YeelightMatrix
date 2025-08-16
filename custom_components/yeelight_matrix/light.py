@@ -46,7 +46,8 @@ async def async_setup_entry(
     modules = entry.data[CONF_MODULES]
 
     cube = CubeMatrix(host, port)
-    layout = Layout(layout_orientation, base_position, modules)
+    layout = Layout(layout_orientation, base_position)
+    layout.add_modules_list(modules)
 
     light = YeelightMatrixLight(cube, layout, entry.entry_id)
     async_add_entities([light])
@@ -147,8 +148,9 @@ class YeelightMatrixLight(LightEntity):
         final_colors = []
         if isinstance(colors, str):
             try:
-                # The layout object stores modules in reversed order if needed, so we use its internal list
-                module = self._layout.device_layout[self._layout._get_index(module_index)]
+                # Use the public get_modules() method to respect encapsulation
+                modules = self._layout.get_modules()
+                module = modules[module_index]
                 led_count = 25 if "5x5" in module.type else 1
                 final_colors = [colors] * led_count
             except IndexError:
