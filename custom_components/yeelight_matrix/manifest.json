@@ -1,11 +1,14 @@
 {
   "domain": "yeelight_matrix",
   "name": "Yeelight Matrix",
+  "config_flow": true,
   "codeowners": [],
   "dependencies": [],
-  "documentation": "https://github.com/example/yeelight-matrix-hass",
+  "documentation": "https://github.com/VladFlorinIlie/YeelightMatrix",
   "iot_class": "local_polling",
-  "issue_tracker": "https://github.com/example/yeelight-matrix-hass/issues",
-  "requirements": ["yeelight-matrix==0.1.0"],
-  "version": "0.1.0"
+  "issue_tracker": "https://github.com/VladFlorinIlie/YeelightMatrix/issues",
+  "requirements": [
+    "yeelight-matrix==0.1.0"
+  ],
+  "version": "0.1.1"
 }
