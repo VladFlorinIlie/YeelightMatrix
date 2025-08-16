@@ -8,7 +8,7 @@
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/VladFlorinIlie/YeelightMatrix/issues",
   "requirements": [
-    "YeelightMatrix==0.1.0"
+    "YeelightMatrix==0.1.1"
   ],
   "version": "0.1.1"
 }

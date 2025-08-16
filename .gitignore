@@ -1,3 +1,4 @@
 old/
 **/__pycache__/
 **/*egg-info/
+**/dist/
