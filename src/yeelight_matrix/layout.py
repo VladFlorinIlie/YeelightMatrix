@@ -52,6 +52,12 @@ class Layout:
         self.device_layout.insert(max(0, self._get_index(index)), Module(module))
 
 
+    def remove_module(self, module_index):
+        """Removes a module from the layout by its index."""
+        if 0 <= module_index < len(self.device_layout):
+            del self.device_layout[self._get_index(module_index)]
+
+
     def set_module_colors(self, index, colors):
         _LOGGER.debug(f"Setting colors {colors} on module at index {index}")
         module = self.device_layout[self._get_index(index)]
