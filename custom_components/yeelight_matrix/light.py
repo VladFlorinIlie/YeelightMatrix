@@ -46,8 +46,7 @@ async def async_setup_entry(
     modules = entry.data[CONF_MODULES]
 
     cube = CubeMatrix(host, port)
-    layout = Layout(layout_orientation, base_position)
-    layout.add_modules_list(modules)
+    layout = Layout(layout_orientation, base_position, modules)
 
     light = YeelightMatrixLight(cube, layout, entry.entry_id)
     async_add_entities([light])
@@ -57,7 +56,7 @@ async def async_setup_entry(
         SERVICE_SET_MODULE_COLORS,
         {
             vol.Required("module_index"): vol.All(vol.Coerce(int), vol.Range(min=0)),
-            vol.Required("colors"): vol.All(list, [vol.All(str)]),
+            vol.Required("colors"): vol.Any(vol.All(list, [vol.All(str)]), str),
         },
         "async_set_module_colors",
     )
@@ -129,19 +128,37 @@ class YeelightMatrixLight(LightEntity):
         properties = await self.hass.async_add_executor_job(self._cube.get_bulb().get_properties)
         if properties:
             self._attr_is_on = properties["power"] == "on"
-            self._attr_brightness = int(properties["bright"]) * 255 / 100
-            if properties["rgb"] is not None:
-                r, g, b = (
-                    int(properties["rgb"][0:2], 16),
-                    int(properties["rgb"][2:4], 16),
-                    int(properties["rgb"][4:6], 16),
-                )
-                self._attr_rgb_color = (r, g, b)
+            self._attr_brightness = int(int(properties["bright"]) * 255 / 100)
+            rgb_val = properties.get("rgb")
+            if rgb_val is not None:
+                if isinstance(rgb_val, str):
+                    r = int(rgb_val[0:2], 16)
+                    g = int(rgb_val[2:4], 16)
+                    b = int(rgb_val[4:6], 16)
+                    self._attr_rgb_color = (r, g, b)
+                elif isinstance(rgb_val, int):
+                    r = (rgb_val >> 16) & 0xFF
+                    g = (rgb_val >> 8) & 0xFF
+                    b = rgb_val & 0xFF
+                    self._attr_rgb_color = (r, g, b)
 
-    async def async_set_module_colors(self, module_index: int, colors: list[str]) -> None:
+    async def async_set_module_colors(self, module_index: int, colors: str | list[str]) -> None:
         """Set the colors of a module."""
+        final_colors = []
+        if isinstance(colors, str):
+            try:
+                # The layout object stores modules in reversed order if needed, so we use its internal list
+                module = self._layout.device_layout[self._layout._get_index(module_index)]
+                led_count = 25 if "5x5" in module.type else 1
+                final_colors = [colors] * led_count
+            except IndexError:
+                _LOGGER.error("Module index %s out of range.", module_index)
+                return
+        else:
+            final_colors = colors
+
         await self.hass.async_add_executor_job(
-            self._layout.set_module_colors, module_index, colors
+            self._layout.set_module_colors, module_index, final_colors
         )
         await self._async_draw_layout()
 
