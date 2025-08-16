@@ -1,0 +1,30 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Yeelight Matrix",
+        "description": "Enter the IP address and port of your Yeelight Cube.",
+        "data": {
+          "host": "IP Address",
+          "port": "Port"
+        }
+      },
+      "layout": {
+        "title": "Yeelight Matrix Layout",
+        "description": "Configure the layout of your Yeelight Cubes.",
+        "data": {
+          "layout_orientation": "Layout Orientation",
+          "base_position": "Base Position",
+          "modules": "Modules (comma-separated, e.g., 5x5_clear,5x5_blur,1x1)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the Yeelight Cube.",
+      "unknown": "An unknown error occurred."
+    },
+    "abort": {
+      "already_configured": "This Yeelight Cube is already configured."
+    }
+  }
+}

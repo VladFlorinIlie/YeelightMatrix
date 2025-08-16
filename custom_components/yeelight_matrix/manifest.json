@@ -1,0 +1,11 @@
+{
+  "domain": "yeelight_matrix",
+  "name": "Yeelight Matrix",
+  "codeowners": [],
+  "dependencies": [],
+  "documentation": "https://github.com/example/yeelight-matrix-hass",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/example/yeelight-matrix-hass/issues",
+  "requirements": ["yeelight-matrix==0.1.0"],
+  "version": "0.1.0"
+}

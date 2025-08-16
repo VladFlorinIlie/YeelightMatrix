@@ -1,0 +1,56 @@
+set_module_colors:
+  name: Set Module Colors
+  description: "Sets the colors of a specific module."
+  fields:
+    module_index:
+      name: Module Index
+      description: "The index of the module to set the colors for."
+      required: true
+      selector:
+        number:
+          min: 0
+          mode: box
+    colors:
+      name: Colors
+      description: "A list of hex color codes."
+      required: true
+      selector:
+        object: {}
+
+set_image:
+  name: Set Image
+  description: "Displays an image on the matrix."
+  fields:
+    image_path:
+      name: Image Path
+      description: "The path to the image file."
+      required: true
+      selector:
+        text:
+    start_module:
+      name: Start Module
+      description: "The index of the module to start displaying the image on."
+      required: true
+      selector:
+        number:
+          min: 0
+          mode: box
+    max_modules:
+      name: Max Modules
+      description: "The maximum number of modules to display the image on."
+      required: true
+      selector:
+        number:
+          min: 1
+          mode: box
+
+set_fx_mode:
+  name: Set FX Mode
+  description: "Sets the FX mode of the cube."
+  fields:
+    mode:
+      name: Mode
+      description: "The FX mode to set."
+      required: true
+      selector:
+        text:
