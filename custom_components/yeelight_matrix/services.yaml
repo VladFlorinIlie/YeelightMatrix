@@ -12,8 +12,9 @@ set_module_colors:
           mode: box
     colors:
       name: Colors
-      description: "A list of hex color codes."
+      description: "A list of hex color codes, or a single hex color string to fill the entire module."
       required: true
+      example: "'#FF0000' or ['#FF0000', '#00FF00', ...]"
       selector:
         object: {}
 
