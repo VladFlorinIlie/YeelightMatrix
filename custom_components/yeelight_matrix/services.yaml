@@ -175,9 +175,9 @@ set_power:
       integration: yeelight_matrix
       domain: light
   fields:
-    on:
-      name: On
-      description: True to turn on (direct mode), false to turn off.
+    "on":
+      name: "On"
+      description: "True to turn on (direct mode), false to turn off."
       required: true
       selector:
         boolean:
