@@ -1,0 +1,13 @@
+{
+  "domain": "yeelight_matrix",
+  "name": "Yeelight Matrix",
+  "codeowners": ["@VladFlorinIlie"],
+  "config_flow": true,
+  "dependencies": ["http", "frontend"],
+  "documentation": "https://github.com/VladFlorinIlie/YeelightMatrix",
+  "integration_type": "device",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/VladFlorinIlie/YeelightMatrix/issues",
+  "requirements": ["YeelightMatrix==0.2.0"],
+  "version": "0.2.0"
+}

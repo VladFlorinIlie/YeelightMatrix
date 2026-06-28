@@ -1,0 +1,6 @@
+# Metadata lives in setup.py (so the long description can be read from the
+# repo-root README without packaging issues). This file only declares the
+# build backend so `python -m build` works.
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"

@@ -1,124 +1,184 @@
+"""Arrangement of cube modules and rendering of the combined LED frame.
+
+A :class:`Layout` knows how the physical modules are stacked (orientation and
+which end is the base) and turns the per-module logical colour grids into the
+single base64 frame understood by the device.
+
+Modules are addressed by their *logical* index (0 is the visual first module,
+matching the order you would read the picture). Internally the modules may be
+stored reversed and each is rotated at render time so that pictures appear the
+right way up regardless of how the stack is mounted.
+"""
+
+from __future__ import annotations
+
 import logging
-from yeelight_matrix.module import Module
-from yeelight_matrix.image_utils import image_to_matrix, get_image_from_file, get_image_from_colors, rotate_image
+from typing import List, Optional, Sequence
+
+from .color import ColorLike, encode_many
+from .enums import BasePosition, ModuleType, Orientation
+from .exceptions import LayoutError
+from .image_utils import load_image_grids, rotate_grid
+from .module import Module
 
 _LOGGER = logging.getLogger(__name__)
 
+# Mapping of (orientation, base) -> (rotation degrees, modules stored reversed).
+_ORIENTATION_TABLE = {
+    (Orientation.VERTICAL, BasePosition.BOTTOM): (180, True),
+    (Orientation.VERTICAL, BasePosition.TOP): (0, False),
+    (Orientation.HORIZONTAL, BasePosition.LEFT): (270, False),
+    (Orientation.HORIZONTAL, BasePosition.RIGHT): (90, True),
+}
+
+
 class Layout:
-    def __init__(self, layout_orientation, base, device_layout=[]):
-        self.layout_orientation = layout_orientation
-        self.base = base
-        self.number_modules = len(device_layout)
+    """A stack of :class:`Module` objects rendered as one LED frame.
 
-        if self.layout_orientation == "vertical":
-            if self.base == "bottom":
-                self.rotation_degrees = 180
-                self.image_draw_flipped = True
-            else:
-                self.rotation_degrees = 0
-                self.image_draw_flipped = False
-        else:
-            if self.base == "left":
-                self.rotation_degrees = 270
-                self.image_draw_flipped = False
-            else:
-                self.rotation_degrees = 90
-                self.image_draw_flipped = True
+    Args:
+        orientation: Whether modules are stacked vertically or horizontally.
+        base: Which end of the stack is the base.
+        modules: Optional initial list of module types (strings or
+            :class:`ModuleType`). Equivalent to calling :meth:`add_modules`.
+    """
 
-        self.device_layout = list(reversed(device_layout)) if self.image_draw_flipped else device_layout
-
-
-    def _get_index(self, index):
-        if self.image_draw_flipped:
-            return self.number_modules - index - 1
-        return index
-
-
-    def get_modules(self):
-        return list(reversed(self.device_layout)) if self.image_draw_flipped else self.device_layout
-
-
-    def add_modules_list(self, modules, clear=True):
-        if clear:
-            self.device_layout = []
-
-        modules = list(reversed(modules)) if self.image_draw_flipped else modules
-        for module in modules:
-            self.device_layout.append(Module(module))
-
-
-    def add_module(self, module, index=None):
-        index = self.number_modules if index is None else index
-        self.device_layout.insert(max(0, self._get_index(index)), Module(module))
-
-
-    def set_module_colors(self, index, colors):
-        _LOGGER.debug(f"Setting colors {colors} on module at index {index}")
-        module = self.device_layout[self._get_index(index)]
-        size = 1 if module.type == "1x1" else 5
-        img = get_image_from_colors(colors, size, size)
-        img = rotate_image(img, self.rotation_degrees)
-        processed_colors = image_to_matrix(img)
-        module.set_colors(processed_colors)
-
-
-    def set_image(self, path, start, max=None):
-        _LOGGER.debug(f"Setting image from path {path} starting with module at index {start} and using a maximum on {max}")
-        found_target = False
-
-        start = self._get_index(start)
-        for i, module in enumerate(self.device_layout):
-            if module.type == "5x5_clear" and not module.is_used() and i >= start:
-                found_target = True
-                start_module = i
-                break
-
-        if not found_target:
-            raise IndexError("Requested start module could not be found or used!")
-        
-        if self.layout_orientation == "vertical":
-            img_height = 0
-            img_width = 5
-        else:
-            img_height = 5
-            img_width = 0
-
-        cnt = 0
-        for module in self.device_layout[start_module:]:
-            if module.type == "5x5_clear" and not module.is_used() and cnt is not None and cnt < max:
-                if self.layout_orientation == "vertical":
-                    img_height += 5
-                else:
-                    img_width += 5
-                cnt += 1
-            else:
-                break
-
+    def __init__(
+        self,
+        orientation: Orientation | str,
+        base: BasePosition | str,
+        modules: Optional[Sequence[ModuleType | str]] = None,
+    ) -> None:
+        self.orientation = Orientation(orientation)
+        self.base = BasePosition(base)
         try:
-            imgs = get_image_from_file(path, img_width, img_height, 5, 5)
-            imgs = [rotate_image(img, self.rotation_degrees) for img in imgs]
-            matrices = [image_to_matrix(img) for img in imgs]
+            self.rotation, self._flipped = _ORIENTATION_TABLE[(self.orientation, self.base)]
+        except KeyError as exc:
+            raise LayoutError(
+                f"Base {self.base.value!r} is not valid for a {self.orientation.value} layout"
+            ) from exc
 
-            for i, module in enumerate(self.device_layout[start_module:]):
-                if i >= cnt:
-                    break
-                module.set_data(matrices[i])
+        # Modules in transmission/storage order (reversed when flipped).
+        self._modules: List[Module] = []
+        if modules:
+            self.add_modules(modules)
 
-        except IndexError:
-            raise(RuntimeError("Image could not be drawn"))
-        except FileNotFoundError:
-            raise(FileNotFoundError(f"Error: Image file not found: {path}"))
+    # -- module management --------------------------------------------------
 
+    def __len__(self) -> int:
+        return len(self._modules)
 
-    def get_raw_rgb_data(self):
-        combined_rgb_data = ""
+    @property
+    def modules(self) -> List[Module]:
+        """Modules in logical order (index 0 = visual first module)."""
+        return list(reversed(self._modules)) if self._flipped else list(self._modules)
 
-        if self.image_draw_flipped:
-            layout = reversed(list(self.device_layout))
+    def add_modules(self, modules: Sequence[ModuleType | str], clear: bool = True) -> None:
+        """Add a list of module types, replacing existing modules by default."""
+        if clear:
+            self._modules = []
+        wrapped = [Module(module_type) for module_type in modules]
+        if self._flipped:
+            wrapped = list(reversed(wrapped))
+        self._modules.extend(wrapped)
+
+    def add_module(self, module_type: ModuleType | str, index: Optional[int] = None) -> None:
+        """Insert a single module at the given logical ``index`` (append if None)."""
+        logical = len(self._modules) if index is None else index
+        self._modules.insert(max(0, self._storage_index(logical)), Module(module_type))
+
+    def module_at(self, index: int) -> Module:
+        """Return the module at the given logical index."""
+        try:
+            return self._modules[self._storage_index(index)]
+        except IndexError as exc:
+            raise LayoutError(f"No module at index {index}") from exc
+
+    def _storage_index(self, logical_index: int) -> int:
+        if self._flipped:
+            return len(self._modules) - logical_index - 1
+        return logical_index
+
+    # -- colour / pixel editing --------------------------------------------
+
+    def set_pixel(self, module_index: int, x: int, y: int, color: ColorLike) -> None:
+        """Set a single dot on a module's 5x5 grid (or the 0,0 dot of a spotlight)."""
+        _LOGGER.debug("Set pixel (%s, %s) on module %s -> %s", x, y, module_index, color)
+        self.module_at(module_index).set_pixel(x, y, color)
+
+    def set_module_colors(self, index: int, colors: Sequence[ColorLike] | ColorLike) -> None:
+        """Set a module's colours.
+
+        ``colors`` may be a single colour (fills the whole module) or a
+        row-major sequence matching the module's LED count.
+        """
+        _LOGGER.debug("Set colours on module %s -> %s", index, colors)
+        module = self.module_at(index)
+        if isinstance(colors, str) or (
+            isinstance(colors, (tuple, list))
+            and len(colors) == 3
+            and all(isinstance(c, int) for c in colors)
+        ):
+            module.fill(colors)  # single colour
         else:
-            layout = self.device_layout
+            module.set_grid(colors)
 
-        for module in layout:
-            combined_rgb_data += module.get_rgb_data()
+    def fill(self, color: ColorLike) -> None:
+        """Fill every module in the layout with a single colour."""
+        for module in self._modules:
+            module.fill(color)
 
-        return combined_rgb_data
+    def clear(self) -> None:
+        """Turn every dot in the layout off."""
+        for module in self._modules:
+            module.clear()
+
+    def set_image(self, image_path: str, start_module: int = 0, max_modules: Optional[int] = None) -> None:
+        """Render a picture across consecutive unused 5x5 modules.
+
+        Starting from logical index ``start_module`` the image is mapped onto up
+        to ``max_modules`` consecutive, currently-unused 5x5 (clear) modules.
+        """
+        _LOGGER.debug("Set image %s from module %s (max %s)", image_path, start_module, max_modules)
+        # Scan in transmission order. For base-at-end layouts (bottom/right) the
+        # image always begins at the base; for base-at-start layouts (top/left)
+        # it honours ``start_module``. This matches the device's reading order.
+        scan_start = 0 if self._flipped else start_module
+        limit = len(self._modules) if max_modules is None else max_modules
+
+        # Find the first usable module at or after the scan position.
+        first = next(
+            (
+                i
+                for i in range(max(0, scan_start), len(self._modules))
+                if self._is_free_matrix(self._modules[i])
+            ),
+            None,
+        )
+        if first is None:
+            raise LayoutError("No free 5x5 module found to start the image")
+
+        # Count consecutive usable modules, capped at the limit.
+        count = 0
+        for module in self._modules[first:]:
+            if count >= limit or not self._is_free_matrix(module):
+                break
+            count += 1
+
+        grids = load_image_grids(image_path, count, self.orientation)
+        for module, grid in zip(self._modules[first : first + count], grids):
+            module.set_grid(grid)
+
+    @staticmethod
+    def _is_free_matrix(module: Module) -> bool:
+        return module.type is ModuleType.CLEAR and not module.used
+
+    # -- rendering ----------------------------------------------------------
+
+    def render_frame(self) -> str:
+        """Return the full base64 LED frame for :meth:`CubeMatrix.update_leds`."""
+        frame = ""
+        for module in reversed(self._modules) if self._flipped else self._modules:
+            colors = rotate_grid(module.colors, self.rotation, module.width) if module.is_matrix \
+                else module.colors
+            frame += encode_many(colors)
+        return frame

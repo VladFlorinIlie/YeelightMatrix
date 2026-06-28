@@ -1,117 +1,78 @@
-import json
-import socket
+"""Low-level driver for a Yeelight Cube Matrix device.
+
+This thin wrapper around :class:`yeelight.Bulb` exposes the handful of
+matrix-specific commands (``activate_fx_mode`` and ``update_leds``) on top of
+the standard bulb controls (power, brightness, colour) provided by the
+underlying ``yeelight`` library.
+"""
+
+from __future__ import annotations
+
 import logging
-from itertools import count
-import base64
+from typing import Sequence
+
+from yeelight import Bulb
+
+from .color import ColorLike, encode, encode_many
+from .exceptions import CubeMatrixError
 
 _LOGGER = logging.getLogger(__name__)
 
-
-class CubeMatrixException(Exception):
-    """Custom exception for cube matrix related errors."""
-    pass
+#: FX mode required for direct, per-LED control via :meth:`CubeMatrix.update_leds`.
+FX_MODE_DIRECT = "direct"
 
 
 class CubeMatrix:
-    def __init__(self, ip, port):
-        self.ip = ip
-        self.port = port
-        self._cmd_id = count(1)
-        self._music_mode = True
-        self._last_properties = {}
+    """Represents a physical Yeelight Cube Matrix on the network.
 
+    Args:
+        ip: IP address of the device.
+        port: Control port (usually ``55443``).
+        music_mode: If ``True`` (default) the device is put into "music mode"
+            immediately. The cube reports itself as being in music mode once
+            colour matrices are applied, so enabling it up front avoids the
+            per-command rate limiting otherwise imposed by the device.
+    """
 
-    def _receive_response(self, sock):
-        response = None
-        while response is None:
-            try:
-                data = sock.recv(16 * 1024)
-            except socket.error:
-                response = {"error": "Cube matrix closed the connection."}
-                break
-            if not data:
-                response = {"error": "No more data."}
-                break
+    def __init__(self, ip: str, port: int = 55443, music_mode: bool = True) -> None:
+        self._bulb = Bulb(ip, port)
+        if music_mode:
+            self.start_music()
 
-            for line in data.split(b"\r\n"):
-                if not line:
-                    continue
-                try:
-                    line = json.loads(line.decode("utf8"))
-                    _LOGGER.debug(f"Received: {line}")
-                except (ValueError, UnicodeDecodeError):
-                    _LOGGER.warning("Invalid JSON or Unicode error received.")
-                    line = {"result": ["invalid command"]}
+    @property
+    def bulb(self) -> Bulb:
+        """The underlying :class:`yeelight.Bulb`, for standard bulb controls."""
+        return self._bulb
 
-                if line.get("method") != "props":
-                    response = line
-                elif "params" in line:
-                    self._last_properties.update(line["params"])
-        return response
-
-
-    def send_command(self, command):
-        """Sends a command to the bulb."""
+    def start_music(self) -> None:
+        """Enable music mode (best-effort; ignores an already-on state)."""
         try:
-            with socket.create_connection((self.ip, self.port), 5) as sock:
-                _LOGGER.debug(f"Sending to {self.ip}:{self.port}: {command}")
-                try:
-                    sock.sendall((json.dumps(command) + "\r\n").encode("utf8"))
-                except socket.error as ex:
-                    raise CubeMatrixException(f"Socket error sending command: {ex}")
+            self._bulb.start_music()
+        except Exception as exc:  # noqa: BLE001 - yeelight raises broad errors
+            _LOGGER.debug("start_music failed (may already be on): %s", exc)
 
-                if self._music_mode:
-                    return {"result": ["ok"]}
+    def set_fx_mode(self, mode: str = FX_MODE_DIRECT) -> None:
+        """Activate an effect mode. Use ``"direct"`` for per-LED control."""
+        self._send("activate_fx_mode", [{"mode": mode}])
 
-                response = self._receive_response(sock)
-        except (socket.timeout, OSError) as err:
-            raise CubeMatrixException(f"Connection error to {self.ip}:{self.port}: {err}")
+    def update_leds(self, rgb_data: str) -> None:
+        """Push a full frame of LED data (concatenated base64) to the device."""
+        self._send("update_leds", [rgb_data])
 
-        if isinstance(response, dict) and "error" in response:
-            raise CubeMatrixException(response["error"])
-        return response
-    
-
-    def set_power_state(self, state):
-        command = {
-            "id": next(self._cmd_id),
-            "method": "set_power",
-            "params": [state, "smooth", 500]
-        }
-        self.send_command(command)
-
-
-    def set_brightness(self, brightness):
-        command = {
-            "id": next(self._cmd_id),
-            "method": "set_bright",
-            "params": [brightness, "smooth", 500]
-        }
-        self.send_command(command)
-
-
-    def set_fx_mode(self, mode):
-        command = {
-            "id": next(self._cmd_id),
-            "method": "activate_fx_mode",
-            "params": [{"mode": mode}]
-        }
-        self.send_command(command)
-
-
-    def draw_matrices(self, rgb_data):
-        command = {
-            "id": next(self._cmd_id),
-            "method": "update_leds",
-            "params": [rgb_data]
-        }
-        self.send_command(command)
-
+    def set_pixels(self, colors: Sequence[ColorLike]) -> None:
+        """Encode and push an ordered sequence of colours as one frame."""
+        self.update_leds(encode_many(colors))
 
     @staticmethod
-    def encode_hex_color(hex_color):
-        hex_color = hex_color.lstrip("#")
-        rgb = tuple(int(hex_color[i : i + 2], 16) for i in (0, 2, 4))
-        rgb_bytes = bytes(rgb)
-        encoded = base64.b64encode(rgb_bytes).decode("ascii")
-        return encoded
+    def encode_color(color: ColorLike) -> str:
+        """Encode a single colour to the device's base64 representation."""
+        return encode(color)
+
+    def _send(self, command: str, params: list) -> None:
+        try:
+            self._bulb.send_command(command, params)
+        except Exception as exc:  # noqa: BLE001 - surface a typed error
+            raise CubeMatrixError(f"Command {command!r} failed: {exc}") from exc
+
+    def __repr__(self) -> str:  # pragma: no cover - debugging aid
+        return f"CubeMatrix(ip={self._bulb._ip!r}, port={self._bulb._port!r})"

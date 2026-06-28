@@ -1,8 +1,7 @@
 import tkinter as tk
 from tkinter import filedialog, colorchooser, messagebox
 import logging
-from yeelight_matrix.cube_matrix import CubeMatrix, CubeMatrixException
-from yeelight_matrix.layout import Layout
+from yeelight_matrix import CubeMatrix, CubeMatrixError, Layout
 from grid import ColorPickerGrid
 
 # Configure logging
@@ -89,7 +88,7 @@ class YeelightGUI:
             self.cube = CubeMatrix(self.ip.get(), self.port.get())
             self.cube.set_fx_mode("direct")
             messagebox.showinfo("Success", "Connected to cube!")
-        except CubeMatrixException as e:
+        except CubeMatrixError as e:
             messagebox.showerror("Error", f"Could not connect: {e}")
 
 
@@ -125,7 +124,7 @@ class YeelightGUI:
             if len(module_types) != num_modules: # User closed the window prematurely
               return # Do not proceed, allow the user to restart layout definition
 
-            self.layout.add_modules_list(module_types)
+            self.layout.add_modules(module_types)
             self.layout_defined = True
             messagebox.showinfo("Success", "Layout defined.")
 
@@ -147,9 +146,9 @@ class YeelightGUI:
     def recreate_layout(self):
         """Recreates the layout structure without data."""
         try:
-            module_types = [module.type for module in self.layout.get_modules()] # get module types
+            module_types = [module.type for module in self.layout.modules] # get module types
             self.layout = Layout(self.layout_orientation.get(), self.layout_start.get()) # Reset layout, clearing existing data
-            self.layout.add_modules_list(module_types)  # Add modules back to the layout
+            self.layout.add_modules(module_types)  # Add modules back to the layout
             self.update_module_display()  # Refresh display
             messagebox.showinfo("Success", "Layout recreated (data cleared).")
         except Exception as e:
@@ -158,11 +157,11 @@ class YeelightGUI:
 
     def create_module_widgets(self):
         """Create module-specific widgets."""
-        for i, module in enumerate(self.layout.get_modules()): # Use get_modules()
+        for i, module in enumerate(self.layout.modules): # Use get_modules()
             frame = tk.Frame(self.module_frame)
             frame.pack()
 
-            var = tk.IntVar(value=1 if module.is_used() else 0) # Checkmark variable
+            var = tk.IntVar(value=1 if module.used else 0) # Checkmark variable
             checkmark = tk.Checkbutton(frame, variable=var, state=tk.DISABLED) # Initially disabled checkmark
             checkmark.pack(side=tk.LEFT)
 
@@ -195,15 +194,15 @@ class YeelightGUI:
             return
 
         try:
-            modules = self.layout.get_modules()
+            modules = self.layout.modules
 
             if module_index < 0 or module_index >= len(modules):
               raise IndexError("Invalid module index")
 
 
-            module = self.layout.get_modules()[module_index]
+            module = self.layout.modules[module_index]
             if module.type.startswith("5x5"):
-                initial_colors = module.get_colors()  # Use existing module data.
+                initial_colors = module.colors  # Use existing module data.
                 color_picker = ColorPickerGrid(self.master, module_index, initial_colors,
                                      lambda colors: self.layout.set_module_colors(module_index, colors)) # pass callback
                 self.master.wait_window(color_picker)  # Wait for color picker to close
@@ -253,14 +252,14 @@ class YeelightGUI:
         for widget in self.module_frame.winfo_children():
             if isinstance(widget, tk.Frame):  # Module frames
                 try:  # Use a try-except to handle potential layout size mismatches if modules were removed.
-                    module = self.layout.get_modules()[i]
+                    module = self.layout.modules[i]
 
                     checkmark = next((w for w in widget.winfo_children() if isinstance(w, tk.Checkbutton)), None)
                     if checkmark is None:
-                        checkmark_var = tk.IntVar(value=1 if module.is_used() else 0)
+                        checkmark_var = tk.IntVar(value=1 if module.used else 0)
                         checkmark = tk.Checkbutton(widget, variable=checkmark_var, state=tk.DISABLED)
                         checkmark.pack(side=tk.LEFT)
-                    if module.is_used():
+                    if module.used:
                         checkmark.select()
                     else:
                         checkmark.deselect()
@@ -276,11 +275,10 @@ class YeelightGUI:
             return
 
         try:
-            self.layout.layout_start = self.layout_start_var.get()  # set layout start from option menu.
-            raw_rgb_data = self.layout.get_raw_rgb_data()
-            self.cube.draw_matrices(raw_rgb_data)
+            raw_rgb_data = self.layout.render_frame()
+            self.cube.update_leds(raw_rgb_data)
             messagebox.showinfo("Success", "Layout command sent!")
-        except CubeMatrixException as e:
+        except CubeMatrixError as e:
             messagebox.showerror("Error", f"Error sending command: {e}")
 
 
