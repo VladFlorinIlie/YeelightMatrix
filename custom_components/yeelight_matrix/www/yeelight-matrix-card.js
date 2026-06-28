@@ -304,10 +304,14 @@ class YeelightMatrixCard extends HTMLElement {
   }
 }
 
-customElements.define("yeelight-matrix-card", YeelightMatrixCard);
+if (!customElements.get("yeelight-matrix-card")) {
+  customElements.define("yeelight-matrix-card", YeelightMatrixCard);
+}
 window.customCards = window.customCards || [];
-window.customCards.push({
-  type: "yeelight-matrix-card",
-  name: "Yeelight Matrix Painter",
-  description: "Tap or drag to paint individual dots on a Yeelight Cube Matrix.",
-});
+if (!window.customCards.some((c) => c.type === "yeelight-matrix-card")) {
+  window.customCards.push({
+    type: "yeelight-matrix-card",
+    name: "Yeelight Matrix Painter",
+    description: "Tap to paint individual dots on a Yeelight Cube Matrix.",
+  });
+}

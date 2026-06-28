@@ -3,7 +3,7 @@
   "name": "Yeelight Matrix",
   "codeowners": ["@VladFlorinIlie"],
   "config_flow": true,
-  "dependencies": ["http", "frontend"],
+  "dependencies": ["http", "frontend", "lovelace"],
   "documentation": "https://github.com/VladFlorinIlie/YeelightMatrix",
   "integration_type": "device",
   "iot_class": "local_polling",

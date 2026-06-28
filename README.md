@@ -62,20 +62,53 @@ rotation for the mounting position is applied automatically at render time.
 
 ## Home Assistant integration
 
-Install via **HACS** (add this repo as a custom repository, category
-*Integration*) or by copying `custom_components/yeelight_matrix` into your Home
-Assistant `config/custom_components` directory. Restart Home Assistant, then add
-the integration from **Settings → Devices & Services**. See
-[docs/HOME_ASSISTANT.md](docs/HOME_ASSISTANT.md) for full steps. You
-provide the IP/port, the orientation and base, and the comma-separated module
-list (e.g. `5x5_clear,5x5_clear,1x1`). Tick **Create a light entity for every
-individual dot** if you want one toggleable light per LED.
+Full step-by-step guide: [docs/HOME_ASSISTANT.md](docs/HOME_ASSISTANT.md).
+
+### Install
+
+1. **HACS → ⋮ → Custom repositories** → add this repository, category
+   **Integration** → open it → **Download**. (Or copy
+   `custom_components/yeelight_matrix` into `config/custom_components`.)
+2. **Restart Home Assistant.** It installs the `YeelightMatrix` PyPI requirement
+   on startup, and registers the painter card automatically (no manual resource
+   needed).
+
+### Configure
+
+**Settings → Devices & Services → Add Integration → "Yeelight Matrix".**
+
+- IP address and port (usually `55443`).
+- Orientation (`vertical`/`horizontal`) and base position
+  (`top`/`bottom` or `left`/`right`).
+- Modules, comma-separated, in order — e.g.
+  `5x5_blur,5x5_clear,5x5_clear,1x1`.
+- Optional: tick **Create a light entity for every individual dot** to get one
+  light per LED (otherwise control dots via the card or services).
+
+The cube is switched to `direct` mode automatically, and any dot edit also turns
+the device on, so drawing always works.
 
 ### Entities
 
-- A whole-device light for power, brightness and colour.
-- Optionally, one light per dot (`Module N dot x,y`) so you can colour
-  individual LEDs straight from the dashboard.
+- A whole-device light (power, brightness, colour).
+- Optionally one light per dot (`Module N dot x,y`).
+
+### Painter card (tap a dot to colour it)
+
+The integration serves and registers the card for you. Add it to a dashboard
+(Add Card → **Manual**):
+
+```yaml
+type: custom:yeelight-matrix-card
+entity: light.yeelight_matrix
+reverse: false        # set true if the on-screen order is mirrored vs the cubes
+max_dot_size: 30      # optional px upper bound per dot
+min_dot_size: 12      # optional px; below this the grid scrolls
+```
+
+Pick a colour (full picker or a swatch) and **click a dot** to colour it.
+**Upload art** maps an image across the clear modules, and **Clear** blanks
+everything. The grid restores from the device when it loads.
 
 ### Services
 
@@ -84,36 +117,20 @@ All services target the Yeelight Matrix light entity.
 | Service | Purpose |
 | --- | --- |
 | `yeelight_matrix.set_pixel` | Colour one dot (`module_index`, `x`, `y`, `color`). |
-| `yeelight_matrix.set_pixels` | Batch many dots in one frame (used by the card). |
+| `yeelight_matrix.set_pixels` | Set many dots in one frame. |
 | `yeelight_matrix.set_module_color` | Fill a module with one colour. |
 | `yeelight_matrix.set_module_colors` | Set a module's full 25-colour grid. |
 | `yeelight_matrix.set_image` | Draw pixel art from `image_path` or base64 `image_data`. |
 | `yeelight_matrix.clear` | Turn every dot off. |
 | `yeelight_matrix.set_fx_mode` | Activate a device effect mode. |
 
-Uploading pixel art from an automation:
+Example — draw a single dot:
 
 ```yaml
-service: yeelight_matrix.set_image
+action: yeelight_matrix.set_pixel
 target:
   entity_id: light.yeelight_matrix
-data:
-  image_data: "{{ states('input_text.my_base64_png') }}"
-  start_module: 0
-  max_modules: 2
-```
-
-### Painter card (tap a dot to colour it)
-
-`custom_components/yeelight_matrix/www/yeelight-matrix-card.js` is a custom
-Lovelace card that renders the matrix as a grid you can paint by tapping or
-dragging — like the Yeelight app. Register it as a dashboard resource
-(`/local/yeelight-matrix-card.js` if you copy it into `config/www`, or via the
-served `www` folder) and add:
-
-```yaml
-type: custom:yeelight-matrix-card
-entity: light.yeelight_matrix
+data: { module_index: 1, x: 2, y: 2, color: "#ff0000" }
 ```
 
 ## Desktop GUI
