@@ -125,6 +125,11 @@ class YeelightMatrixController:
         async_dispatcher_send(self._hass, updated_signal(self._entry_id))
 
     def _draw(self) -> None:
+        # Ensure the cube is on and in direct mode before pushing a frame, so
+        # editing a dot "just works" even if the device was off or had been
+        # switched to another effect mode.
+        self._cube.bulb.turn_on()
+        self._cube.set_fx_mode("direct")
         self._cube.update_leds(self._layout.render_frame())
 
 

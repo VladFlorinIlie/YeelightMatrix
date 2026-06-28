@@ -203,6 +203,11 @@ class YeelightMatrixLight(_MatrixEntity):
     _attr_name = None  # use the device name
     _attr_supported_color_modes = {ColorMode.RGB}
     _attr_color_mode = ColorMode.RGB
+    # These describe the live frame and change on every draw; keep them out of
+    # the recorder/history to avoid database bloat.
+    _unrecorded_attributes = frozenset(
+        {"module_colors", "modules", "orientation", "base_position"}
+    )
 
     def __init__(
         self,
@@ -218,13 +223,27 @@ class YeelightMatrixLight(_MatrixEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Expose the module layout so custom cards can render the grid."""
+        """Expose the layout and current pixel colours for custom cards."""
         layout = self._controller.layout
         return {
             "orientation": layout.orientation.value,
             "base_position": layout.base.value,
             "modules": [module.type.value for module in layout.modules],
+            "module_colors": [module.colors for module in layout.modules],
         }
+
+    async def async_added_to_hass(self) -> None:
+        """Refresh state whenever the matrix is redrawn (so cards stay in sync)."""
+
+        def _updated() -> None:
+            self._attr_is_on = True
+            self.async_write_ha_state()
+
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self.hass, updated_signal(self._entry.entry_id), _updated
+            )
+        )
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the light on, optionally setting brightness/colour."""
