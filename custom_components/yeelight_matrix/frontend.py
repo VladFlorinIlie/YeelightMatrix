@@ -17,6 +17,8 @@ from .const import DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 CARD_URL = "/yeelight_matrix/yeelight-matrix-card.js"
+# Bump when the card JS changes so clients fetch the new version (cache-busting).
+CARD_VERSION = "3"
 _REGISTERED = f"{DOMAIN}_frontend_registered"
 
 
@@ -44,7 +46,7 @@ async def async_register_card(hass: HomeAssistant) -> None:
     try:
         from homeassistant.components.frontend import add_extra_js_url
 
-        add_extra_js_url(hass, CARD_URL)
+        add_extra_js_url(hass, f"{CARD_URL}?v={CARD_VERSION}")
     except Exception as exc:  # noqa: BLE001 - non-fatal; manual resource still works
         _LOGGER.debug("Could not auto-add card module (%s); add it manually", exc)
 

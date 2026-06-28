@@ -140,6 +140,25 @@ class YeelightMatrixCard extends HTMLElement {
     this._resizeObserver = new ResizeObserver(() => this._resizeCells());
     this._resizeObserver.observe(this);
     requestAnimationFrame(() => this._resizeCells());
+    this._pullState(); // restore the current device frame on (re)load
+  }
+
+  _pullState() {
+    if (!this._cells) return;
+    const stateObj = this._stateObj();
+    if (!stateObj) return;
+    const colors = stateObj.attributes.module_colors;
+    if (!colors) return;
+    this._modules.forEach((type, m) => {
+      const size = this._moduleSize(type);
+      const grid = colors[m] || [];
+      for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+          const cell = this._cells[`${m},${x},${y}`];
+          if (cell) cell.style.background = grid[y * size + x] || "#000000";
+        }
+      }
+    });
   }
 
   _buildToolbar() {
@@ -280,6 +299,8 @@ class YeelightMatrixCard extends HTMLElement {
       { image_data: base64, start_module: 0, max_modules: clearModules },
       { entity_id: this._config.entity }
     );
+    // Pull the resulting frame once it has propagated to the entity state.
+    setTimeout(() => this._pullState(), 500);
   }
 }
 

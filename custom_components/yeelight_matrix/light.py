@@ -203,8 +203,11 @@ class YeelightMatrixLight(_MatrixEntity):
     _attr_name = None  # use the device name
     _attr_supported_color_modes = {ColorMode.RGB}
     _attr_color_mode = ColorMode.RGB
-    # Static layout descriptors; no need to store them in history.
-    _unrecorded_attributes = frozenset({"modules", "orientation", "base_position"})
+    # Layout + live frame; the colours change on every draw, so keep them all
+    # out of the recorder/history to avoid database bloat.
+    _unrecorded_attributes = frozenset(
+        {"modules", "orientation", "base_position", "module_colors"}
+    )
 
     def __init__(
         self,
@@ -220,13 +223,31 @@ class YeelightMatrixLight(_MatrixEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Expose the (static) layout so custom cards can build the grid."""
+        """Expose the layout and current pixel colours for custom cards."""
         layout = self._controller.layout
         return {
             "orientation": layout.orientation.value,
             "base_position": layout.base.value,
             "modules": [module.type.value for module in layout.modules],
+            "module_colors": [module.colors for module in layout.modules],
         }
+
+    async def async_added_to_hass(self) -> None:
+        """Republish state after each draw so cards can read the latest frame.
+
+        The card only *reads* this on load and after an upload (never on every
+        change), so this does not interfere with live editing.
+        """
+
+        def _updated() -> None:
+            self._attr_is_on = True
+            self.async_write_ha_state()
+
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self.hass, updated_signal(self._entry.entry_id), _updated
+            )
+        )
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the light on, optionally setting brightness/colour."""
