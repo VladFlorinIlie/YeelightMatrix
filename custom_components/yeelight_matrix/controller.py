@@ -44,6 +44,7 @@ class YeelightMatrixController:
         self._layout = layout
         self._entry_id = entry_id
         self._lock = asyncio.Lock()
+        self._ready = False
 
     @property
     def cube(self) -> CubeMatrix:
@@ -124,12 +125,17 @@ class YeelightMatrixController:
             await self._hass.async_add_executor_job(self._draw)
         async_dispatcher_send(self._hass, updated_signal(self._entry_id))
 
+    def invalidate(self) -> None:
+        """Force the next draw to power on and re-assert direct mode."""
+        self._ready = False
+
     def _draw(self) -> None:
-        # Ensure the cube is on and in direct mode before pushing a frame, so
-        # editing a dot "just works" even if the device was off or had been
-        # switched to another effect mode.
-        self._cube.bulb.turn_on()
-        self._cube.set_fx_mode("direct")
+        # Power on and switch to direct mode only when needed (first draw, or
+        # after the device was toggled); subsequent frames are a single command.
+        if not self._ready:
+            self._cube.bulb.turn_on()
+            self._cube.set_fx_mode("direct")
+            self._ready = True
         self._cube.update_leds(self._layout.render_frame())
 
 

@@ -31,10 +31,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     layout = Layout(orientation, base, modules)
     controller = YeelightMatrixController(hass, cube, layout, entry.entry_id)
 
-    # Enable direct per-LED control so set_pixel/set_image/the painter card
-    # take effect without a manual set_fx_mode call.
-    await controller.async_set_fx_mode("direct")
-
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = controller
 
     await async_register_card(hass)

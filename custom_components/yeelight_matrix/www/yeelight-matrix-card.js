@@ -28,13 +28,11 @@ class YeelightMatrixCard extends HTMLElement {
     this._config = config;
     this._color = "#ff0000";
     this._built = false;
-    this._lastSig = null;
   }
 
   set hass(hass) {
     this._hass = hass;
     if (!this._built) this._build();
-    else this._syncFromState();
   }
 
   getCardSize() {
@@ -142,7 +140,6 @@ class YeelightMatrixCard extends HTMLElement {
     this._resizeObserver = new ResizeObserver(() => this._resizeCells());
     this._resizeObserver.observe(this);
     requestAnimationFrame(() => this._resizeCells());
-    this._syncFromState();
   }
 
   _buildToolbar() {
@@ -219,27 +216,6 @@ class YeelightMatrixCard extends HTMLElement {
     this._swatchEls.forEach((s) =>
       s.classList.toggle("active", s.dataset.color.toLowerCase() === current)
     );
-  }
-
-  _syncFromState() {
-    if (!this._cells) return;
-    const stateObj = this._stateObj();
-    if (!stateObj) return;
-    const colors = stateObj.attributes.module_colors;
-    if (!colors) return;
-    const sig = JSON.stringify(colors);
-    if (sig === this._lastSig) return;
-    this._lastSig = sig;
-    this._modules.forEach((type, m) => {
-      const size = this._moduleSize(type);
-      const grid = colors[m] || [];
-      for (let y = 0; y < size; y++) {
-        for (let x = 0; x < size; x++) {
-          const cell = this._cells[`${m},${x},${y}`];
-          if (cell) cell.style.background = grid[y * size + x] || "#000000";
-        }
-      }
-    });
   }
 
   _resizeCells() {
