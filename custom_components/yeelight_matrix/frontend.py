@@ -20,7 +20,7 @@ _LOGGER = logging.getLogger(__name__)
 
 CARD_URL = "/yeelight_matrix/yeelight-matrix-card.js"
 # Bump when the card JS changes so clients fetch the new version (cache-busting).
-CARD_VERSION = "4"
+CARD_VERSION = "6"
 
 _REGISTERED = f"{DOMAIN}_frontend_registered"
 

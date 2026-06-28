@@ -31,6 +31,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     layout = Layout(orientation, base, modules)
     controller = YeelightMatrixController(hass, cube, layout, entry.entry_id)
 
+    # Restore the last frame so the card/layout come back after a restart (the
+    # device can't report its own LED state).
+    await controller.async_restore()
+
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = controller
 
     await async_register_card(hass)

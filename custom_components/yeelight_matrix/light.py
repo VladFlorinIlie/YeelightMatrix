@@ -40,6 +40,7 @@ from .const import (
     SERVICE_SET_MODULE_COLORS,
     SERVICE_SET_PIXEL,
     SERVICE_SET_PIXELS,
+    SERVICE_SET_POWER,
 )
 from .controller import YeelightMatrixController, updated_signal
 
@@ -143,6 +144,9 @@ def _register_services() -> None:
     platform.async_register_entity_service(
         SERVICE_SET_FX_MODE, {vol.Required("mode"): cv.string}, "async_service_set_fx_mode"
     )
+    platform.async_register_entity_service(
+        SERVICE_SET_POWER, {vol.Required("on"): cv.boolean}, "async_service_set_power"
+    )
 
 
 class _MatrixEntity(LightEntity):
@@ -195,6 +199,9 @@ class _MatrixEntity(LightEntity):
 
     async def async_service_set_fx_mode(self, mode: str) -> None:
         await self._controller.async_set_fx_mode(mode)
+
+    async def async_service_set_power(self, on: bool) -> None:
+        await self._controller.async_set_power(on)
 
 
 class YeelightMatrixLight(_MatrixEntity):
@@ -265,17 +272,12 @@ class YeelightMatrixLight(_MatrixEntity):
             await self.hass.async_add_executor_job(bulb.set_rgb, r, g, b)
             self._attr_rgb_color = kwargs[ATTR_RGB_COLOR]
 
-        # Whole-device colour/power changes leave direct mode; re-assert it on
-        # the next dot edit.
-        self._controller.invalidate()
-
         self.async_write_ha_state()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the light off."""
         await self.hass.async_add_executor_job(self._controller.cube.bulb.turn_off)
         self._attr_is_on = False
-        self._controller.invalidate()
         self.async_write_ha_state()
 
     async def async_update(self) -> None:

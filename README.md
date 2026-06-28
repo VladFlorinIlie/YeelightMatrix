@@ -85,8 +85,9 @@ Full step-by-step guide: [docs/HOME_ASSISTANT.md](docs/HOME_ASSISTANT.md).
 - Optional: tick **Create a light entity for every individual dot** to get one
   light per LED (otherwise control dots via the card or services).
 
-The cube is switched to `direct` mode automatically, and any dot edit also turns
-the device on, so drawing always works.
+Use the **Power** toggle on the card (or the `set_power` service) to turn the
+matrix on — that powers it on and switches it to `direct` mode, ready for
+drawing — or off. Drawing itself no longer changes power or mode.
 
 ### Entities
 
@@ -101,14 +102,20 @@ The integration serves and registers the card for you. Add it to a dashboard
 ```yaml
 type: custom:yeelight-matrix-card
 entity: light.yeelight_matrix
-reverse: false        # set true if the on-screen order is mirrored vs the cubes
+# reverse: true       # optional override; by default the order is taken from
+#                     # the base position so the on-screen order matches the cubes
 max_dot_size: 30      # optional px upper bound per dot
 min_dot_size: 12      # optional px; below this the grid scrolls
 ```
 
-Pick a colour (full picker or a swatch) and **click a dot** to colour it.
-**Upload art** maps an image across the clear modules, and **Clear** blanks
-everything. The grid restores from the device when it loads.
+The module order is derived automatically from the base position (base on the
+right/bottom is shown reversed so module 0 sits on the base side), so it matches
+your physical cubes without configuration. Set `reverse` only to override it.
+
+Flip **Power** to turn the cubes on (direct mode) or off. Pick a colour (full
+picker or a swatch) and **click a dot** to colour it. **Upload art** maps an
+image across the clear modules, and **Clear** blanks everything. The grid
+restores from the device when it loads.
 
 ### Services
 
@@ -122,6 +129,7 @@ All services target the Yeelight Matrix light entity.
 | `yeelight_matrix.set_module_colors` | Set a module's full 25-colour grid. |
 | `yeelight_matrix.set_image` | Draw pixel art from `image_path` or base64 `image_data`. |
 | `yeelight_matrix.clear` | Turn every dot off. |
+| `yeelight_matrix.set_power` | Turn the matrix on (direct mode) or off. |
 | `yeelight_matrix.set_fx_mode` | Activate a device effect mode. |
 
 Example — draw a single dot:

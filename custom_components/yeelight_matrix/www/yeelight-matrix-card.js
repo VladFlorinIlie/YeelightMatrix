@@ -33,6 +33,7 @@ class YeelightMatrixCard extends HTMLElement {
   set hass(hass) {
     this._hass = hass;
     if (!this._built) this._build();
+    else this._updatePower(); // keep only the power toggle in sync (never cells)
   }
 
   getCardSize() {
@@ -47,6 +48,19 @@ class YeelightMatrixCard extends HTMLElement {
     return this._hass && this._hass.states[this._config.entity];
   }
 
+  _autoReverse() {
+    // Explicit override wins; otherwise derive from the base position so the
+    // base module sits on the base side (right/bottom => reversed on screen).
+    if (this._config.reverse !== undefined) return this._config.reverse;
+    return this._base === "right" || this._base === "bottom";
+  }
+
+  _updatePower() {
+    if (!this._powerToggle) return;
+    const stateObj = this._stateObj();
+    if (stateObj) this._powerToggle.checked = stateObj.state === "on";
+  }
+
   _moduleSize(type) {
     return type && type.startsWith("5x5") ? 5 : 1;
   }
@@ -56,6 +70,7 @@ class YeelightMatrixCard extends HTMLElement {
     if (!stateObj) return;
     this._modules = stateObj.attributes.modules || [];
     this._orientation = stateObj.attributes.orientation || "vertical";
+    this._base = stateObj.attributes.base_position || "";
 
     const root = document.createElement("ha-card");
     root.header = this._config.title || "Yeelight Matrix";
@@ -99,7 +114,7 @@ class YeelightMatrixCard extends HTMLElement {
     // Display order can be reversed to match the physical cubes; cell module
     // indices always stay logical so the right module is controlled.
     const order = this._modules.map((type, index) => ({ type, index }));
-    if (this._config.reverse) order.reverse();
+    if (this._autoReverse()) order.reverse();
 
     order.forEach(({ type, index }) => {
       const size = this._moduleSize(type);
@@ -141,6 +156,7 @@ class YeelightMatrixCard extends HTMLElement {
     this._resizeObserver.observe(this);
     requestAnimationFrame(() => this._resizeCells());
     this._pullState(); // restore the current device frame on (re)load
+    this._updatePower();
   }
 
   _pullState() {
@@ -164,6 +180,23 @@ class YeelightMatrixCard extends HTMLElement {
   _buildToolbar() {
     const toolbar = document.createElement("div");
     toolbar.className = "toolbar";
+
+    const powerLabel = document.createElement("label");
+    powerLabel.className = "power";
+    const powerToggle = document.createElement("input");
+    powerToggle.type = "checkbox";
+    powerToggle.addEventListener("change", () => {
+      this._hass.callService(
+        "yeelight_matrix",
+        "set_power",
+        { on: powerToggle.checked },
+        { entity_id: this._config.entity }
+      );
+    });
+    this._powerToggle = powerToggle;
+    powerLabel.appendChild(powerToggle);
+    powerLabel.appendChild(document.createTextNode(" Power"));
+    toolbar.appendChild(powerLabel);
 
     const picker = document.createElement("div");
     picker.className = "picker";

@@ -15,8 +15,9 @@ import os
 import tempfile
 from typing import Iterable, Sequence, Tuple
 
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_send
+from homeassistant.helpers.storage import Store
 from yeelight_matrix import CubeMatrix, Layout
 from yeelight_matrix.color import ColorLike
 
@@ -26,6 +27,11 @@ _LOGGER = logging.getLogger(__name__)
 
 #: A single dot edit: (module_index, x, y, colour).
 PixelEdit = Tuple[int, int, int, ColorLike]
+
+#: Persist the last frame so it survives a Home Assistant restart (the device
+#: cannot report its current LED state, so we remember it here).
+STORAGE_VERSION = 1
+_SAVE_DELAY = 2.0
 
 
 def updated_signal(entry_id: str) -> str:
@@ -44,7 +50,30 @@ class YeelightMatrixController:
         self._layout = layout
         self._entry_id = entry_id
         self._lock = asyncio.Lock()
-        self._ready = False
+        self._store: Store = Store(hass, STORAGE_VERSION, f"{DOMAIN}.{entry_id}")
+
+    async def async_restore(self) -> None:
+        """Reload the last saved frame into the layout (call before adding entities).
+
+        This only restores Home Assistant's view of the frame; it does not push
+        anything to the device (the cubes keep showing their last frame on their
+        own, and we don't want a restart to force them back on).
+        """
+        data = await self._store.async_load()
+        grids = (data or {}).get("modules")
+        if not grids:
+            return
+        for module, colors in zip(self._layout.modules, grids):
+            if isinstance(colors, list) and len(colors) == module.led_count:
+                try:
+                    module.set_grid(colors)
+                except ValueError:  # pragma: no cover - layout changed
+                    continue
+        _LOGGER.debug("Restored last frame for %s", self._entry_id)
+
+    @callback
+    def _data_to_save(self) -> dict:
+        return {"modules": [module.colors for module in self._layout.modules]}
 
     @property
     def cube(self) -> CubeMatrix:
@@ -117,6 +146,22 @@ class YeelightMatrixController:
         """Activate a device effect mode (use ``direct`` for per-LED control)."""
         await self._hass.async_add_executor_job(self._cube.set_fx_mode, mode)
 
+    async def async_set_power(self, on: bool) -> None:
+        """Power the matrix on (direct mode + current frame) or off.
+
+        Drawing no longer powers the device on or sets the mode by itself; this
+        is the explicit control for that (used by the card's power toggle).
+        """
+        if on:
+            await self._hass.async_add_executor_job(self._power_on)
+            await self.async_draw()
+        else:
+            await self._hass.async_add_executor_job(self._cube.bulb.turn_off)
+
+    def _power_on(self) -> None:
+        self._cube.bulb.turn_on()
+        self._cube.set_fx_mode("direct")
+
     # -- rendering ----------------------------------------------------------
 
     async def async_draw(self) -> None:
@@ -124,18 +169,10 @@ class YeelightMatrixController:
         async with self._lock:
             await self._hass.async_add_executor_job(self._draw)
         async_dispatcher_send(self._hass, updated_signal(self._entry_id))
-
-    def invalidate(self) -> None:
-        """Force the next draw to power on and re-assert direct mode."""
-        self._ready = False
+        # Remember the frame so it survives a restart (debounced disk write).
+        self._store.async_delay_save(self._data_to_save, _SAVE_DELAY)
 
     def _draw(self) -> None:
-        # Power on and switch to direct mode only when needed (first draw, or
-        # after the device was toggled); subsequent frames are a single command.
-        if not self._ready:
-            self._cube.bulb.turn_on()
-            self._cube.set_fx_mode("direct")
-            self._ready = True
         self._cube.update_leds(self._layout.render_frame())
 
 

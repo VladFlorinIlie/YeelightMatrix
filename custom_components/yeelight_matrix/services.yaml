@@ -166,3 +166,18 @@ set_fx_mode:
       example: direct
       selector:
         text:
+
+set_power:
+  name: Set Power
+  description: Power the matrix on (direct mode + current frame) or off.
+  target:
+    entity:
+      integration: yeelight_matrix
+      domain: light
+  fields:
+    on:
+      name: On
+      description: True to turn on (direct mode), false to turn off.
+      required: true
+      selector:
+        boolean:
