@@ -16,6 +16,9 @@ jobs:
       - uses: hacs/action@main
         with:
           category: integration
+          # "brands" requires the icon to be merged into home-assistant/brands,
+          # which only matters for default-store inclusion. Skip it here.
+          ignore: brands
 
   hassfest:
     name: Hassfest validation
