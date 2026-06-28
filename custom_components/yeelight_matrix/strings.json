@@ -15,12 +15,16 @@
         "data": {
           "layout_orientation": "Layout Orientation",
           "base_position": "Base Position",
-          "modules": "Modules (comma-separated, e.g., 5x5_clear,5x5_blur,1x1)"
+          "modules": "Modules (comma-separated, e.g. 5x5_clear,5x5_blur,1x1)",
+          "dot_entities": "Create a light entity for every individual dot"
         }
       }
     },
     "error": {
       "cannot_connect": "Failed to connect to the Yeelight Cube.",
+      "no_modules": "Enter at least one module.",
+      "invalid_module": "Modules must be one of: 5x5_clear, 5x5_blur, 1x1.",
+      "invalid_base": "Base position is not valid for the chosen orientation.",
       "unknown": "An unknown error occurred."
     },
     "abort": {

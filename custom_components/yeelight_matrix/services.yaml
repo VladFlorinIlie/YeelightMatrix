@@ -1,57 +1,168 @@
-set_module_colors:
-  name: Set Module Colors
-  description: "Sets the colors of a specific module."
+set_pixel:
+  name: Set Pixel
+  description: Set the colour of a single dot on the matrix.
+  target:
+    entity:
+      integration: yeelight_matrix
+      domain: light
   fields:
     module_index:
       name: Module Index
-      description: "The index of the module to set the colors for."
+      description: Index of the module (0 = first module).
+      required: true
+      selector:
+        number:
+          min: 0
+          mode: box
+    x:
+      name: X
+      description: Column of the dot within the module (0-4).
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 4
+          mode: box
+    y:
+      name: Y
+      description: Row of the dot within the module (0-4).
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 4
+          mode: box
+    color:
+      name: Colour
+      description: Hex colour, e.g. "#ff0000".
+      required: true
+      example: "#ff0000"
+      selector:
+        text:
+
+set_pixels:
+  name: Set Pixels
+  description: Set many dots at once and draw a single frame (used by the painter card).
+  target:
+    entity:
+      integration: yeelight_matrix
+      domain: light
+  fields:
+    pixels:
+      name: Pixels
+      description: >-
+        List of dots, each with module_index, x, y and color, e.g.
+        [{"module_index": 0, "x": 1, "y": 2, "color": "#ff0000"}].
+      required: true
+      selector:
+        object: {}
+
+set_module_color:
+  name: Set Module Colour
+  description: Fill a whole module with a single colour.
+  target:
+    entity:
+      integration: yeelight_matrix
+      domain: light
+  fields:
+    module_index:
+      name: Module Index
+      description: Index of the module to fill.
+      required: true
+      selector:
+        number:
+          min: 0
+          mode: box
+    color:
+      name: Colour
+      description: Hex colour, e.g. "#0000ff".
+      required: true
+      example: "#0000ff"
+      selector:
+        text:
+
+set_module_colors:
+  name: Set Module Colours
+  description: Set a module's full grid (25 hex colours for a 5x5 module, row-major).
+  target:
+    entity:
+      integration: yeelight_matrix
+      domain: light
+  fields:
+    module_index:
+      name: Module Index
+      description: Index of the module to set.
       required: true
       selector:
         number:
           min: 0
           mode: box
     colors:
-      name: Colors
-      description: "A list of hex color codes, or a single hex color string to fill the entire module."
+      name: Colours
+      description: Row-major list of hex colours (25 for a 5x5 module).
       required: true
-      example: "'#FF0000' or ['#FF0000', '#00FF00', ...]"
       selector:
         object: {}
 
 set_image:
   name: Set Image
-  description: "Displays an image on the matrix."
+  description: Render a picture (pixel art) across consecutive 5x5 modules.
+  target:
+    entity:
+      integration: yeelight_matrix
+      domain: light
   fields:
     image_path:
       name: Image Path
-      description: "The path to the image file."
-      required: true
+      description: Path to an image file accessible to Home Assistant.
+      required: false
+      selector:
+        text:
+    image_data:
+      name: Image Data (base64)
+      description: Base64-encoded image bytes, for uploading pixel art directly.
+      required: false
       selector:
         text:
     start_module:
       name: Start Module
-      description: "The index of the module to start displaying the image on."
+      description: Index of the first module to draw the image on.
       required: true
+      default: 0
       selector:
         number:
           min: 0
           mode: box
     max_modules:
       name: Max Modules
-      description: "The maximum number of modules to display the image on."
+      description: Maximum number of modules the image may span.
       required: true
+      default: 1
       selector:
         number:
           min: 1
           mode: box
 
+clear:
+  name: Clear
+  description: Turn every dot on the matrix off.
+  target:
+    entity:
+      integration: yeelight_matrix
+      domain: light
+
 set_fx_mode:
   name: Set FX Mode
-  description: "Sets the FX mode of the cube."
+  description: Activate a device effect mode ("direct" enables per-LED control).
+  target:
+    entity:
+      integration: yeelight_matrix
+      domain: light
   fields:
     mode:
       name: Mode
-      description: "The FX mode to set."
+      description: The FX mode to activate.
       required: true
+      example: direct
       selector:
         text:
