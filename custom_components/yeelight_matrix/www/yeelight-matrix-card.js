@@ -27,8 +27,6 @@ class YeelightMatrixCard extends HTMLElement {
     }
     this._config = config;
     this._color = "#ff0000";
-    this._painting = false;
-    this._pending = new Map();
     this._built = false;
     this._lastSig = null;
   }
@@ -45,7 +43,6 @@ class YeelightMatrixCard extends HTMLElement {
 
   disconnectedCallback() {
     if (this._resizeObserver) this._resizeObserver.disconnect();
-    if (this._onUp) document.removeEventListener("pointerup", this._onUp);
   }
 
   _stateObj() {
@@ -119,14 +116,7 @@ class YeelightMatrixCard extends HTMLElement {
           cell.style.background = "#000000";
           cell.dataset.key = `${index},${x},${y}`;
           this._cells[cell.dataset.key] = cell;
-          cell.addEventListener("pointerdown", (e) => {
-            e.preventDefault();
-            this._painting = true;
-            this._paintCell(cell);
-          });
-          cell.addEventListener("pointerenter", () => {
-            if (this._painting) this._paintCell(cell);
-          });
+          cell.addEventListener("click", () => this._setPixel(cell));
           grid.appendChild(cell);
         }
       }
@@ -140,15 +130,6 @@ class YeelightMatrixCard extends HTMLElement {
       col.appendChild(label);
       this._stack.appendChild(col);
     });
-
-    this._stack.addEventListener("pointermove", (e) => {
-      if (!this._painting) return;
-      const el = document.elementFromPoint(e.clientX, e.clientY);
-      if (el && el.classList && el.classList.contains("cell")) this._paintCell(el);
-    });
-
-    this._onUp = () => this._flush();
-    document.addEventListener("pointerup", this._onUp);
 
     scroll.appendChild(this._stack);
     wrap.appendChild(scroll);
@@ -241,7 +222,7 @@ class YeelightMatrixCard extends HTMLElement {
   }
 
   _syncFromState() {
-    if (this._painting || !this._cells) return;
+    if (!this._cells) return;
     const stateObj = this._stateObj();
     if (!stateObj) return;
     const colors = stateObj.attributes.module_colors;
@@ -289,22 +270,13 @@ class YeelightMatrixCard extends HTMLElement {
     this._stack.style.setProperty("--cell", `${cell}px`);
   }
 
-  _paintCell(cell) {
+  _setPixel(cell) {
     cell.style.background = this._color;
     const [m, x, y] = cell.dataset.key.split(",").map(Number);
-    this._pending.set(cell.dataset.key, { module_index: m, x, y, color: this._color });
-  }
-
-  _flush() {
-    if (!this._painting) return;
-    this._painting = false;
-    if (this._pending.size === 0) return;
-    const pixels = Array.from(this._pending.values());
-    this._pending.clear();
     this._hass.callService(
       "yeelight_matrix",
-      "set_pixels",
-      { pixels },
+      "set_pixel",
+      { module_index: m, x, y, color: this._color },
       { entity_id: this._config.entity }
     );
   }
