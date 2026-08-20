@@ -23,7 +23,7 @@ from homeassistant.components.light import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import config_validation as cv, entity_platform
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import DeviceInfo
@@ -245,7 +245,7 @@ class YeelightMatrixLight(_MatrixEntity):
         The card only *reads* this on load and after an upload (never on every
         change), so this does not interfere with live editing.
         """
-
+        @callback
         def _updated() -> None:
             self._attr_is_on = True
             self.async_write_ha_state()
@@ -335,7 +335,7 @@ class YeelightMatrixDot(_MatrixEntity):
 
     async def async_added_to_hass(self) -> None:
         """Refresh when any draw happens so the dot stays in sync."""
-
+        @callback
         def _updated() -> None:
             self._refresh_from_layout()
             self.async_write_ha_state()
