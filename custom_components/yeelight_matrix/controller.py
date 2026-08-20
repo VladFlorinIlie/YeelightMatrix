@@ -20,6 +20,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.storage import Store
 from yeelight_matrix import CubeMatrix, Layout
 from yeelight_matrix.color import ColorLike
+from yeelight_matrix.exceptions import CubeMatrixError
 
 from .const import DOMAIN
 
@@ -173,7 +174,19 @@ class YeelightMatrixController:
         self._store.async_delay_save(self._data_to_save, _SAVE_DELAY)
 
     def _draw(self) -> None:
-        self._cube.update_leds(self._layout.render_frame())
+        try:
+            self._cube.update_leds(self._layout.render_frame())
+        except CubeMatrixError:
+            _LOGGER.warning(
+                "Yeelight cube connection was closed by the device; "
+                "reconnecting and retrying the draw once"
+            )
+            self._reconnect_cube()
+            self._cube.update_leds(self._layout.render_frame())
+
+    def _reconnect_cube(self) -> None:
+        bulb = self._cube.bulb
+        self._cube = CubeMatrix(bulb._ip, bulb._port)
 
 
 def _resolve_image(image_path: str | None, image_data: str | None) -> Tuple[str, bool]:
